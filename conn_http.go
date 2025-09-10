@@ -224,7 +224,9 @@ func dialHttp(ctx context.Context, addr string, num int, opt *Options) (*httpCon
 		httpProxy = http.ProxyURL(opt.HTTPProxyURL)
 	}
 
-	t := &http.Transport{
+	var t http.RoundTripper
+
+	tr := &http.Transport{
 		Proxy: httpProxy,
 		DialContext: (&net.Dialer{
 			Timeout: opt.DialTimeout,
@@ -237,8 +239,17 @@ func dialHttp(ctx context.Context, addr string, num int, opt *Options) (*httpCon
 	}
 
 	if opt.DialContext != nil {
-		t.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			return opt.DialContext(ctx, addr)
+		}
+	}
+
+	t = tr
+
+	if opt.TransportFunc != nil {
+		t, err = opt.TransportFunc(tr)
+		if err != nil {
+			return nil, err
 		}
 	}
 
